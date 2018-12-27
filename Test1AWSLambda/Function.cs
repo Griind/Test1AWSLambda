@@ -12,16 +12,21 @@ namespace Test1AWSLambda
 {
     public class Function
     {
-        
-        /// <summary>
-        /// A simple function that takes a string and does a ToUpper
-        /// </summary>
-        /// <param name="input"></param>
-        /// <param name="context"></param>
-        /// <returns></returns>
-        public string FunctionHandler(string input, ILambdaContext context)
+        private readonly string[] _supportedImageTypes = new string[] { ".jpg", ".png", ".jpeg" };
+        private readonly AmazonS3Client _s3Client;
+        public Function() => _s3Client = new AmazonS3Client();
+
+        public string[] SupportedImageTypes => _supportedImageTypes;
+
+        public string FunctionHandler(S3Event s3Event, ILambdaContext context)
         {
-            return input?.ToUpper();
+            foreach (var record in s3Event.Records)
+            {
+                if (SupportedImageTypes.Contains(Path.GetExension()))
+                {
+
+                }
+            }
         }
     }
 }
