@@ -8,6 +8,7 @@ using Amazon.Lambda.Core;
 using Amazon.Lambda.S3Events;
 using Amazon.S3;
 using Amazon.S3.Model;
+using TinyPng;
 
 // Assembly attribute to enable the Lambda function's JSON input to be converted into a .NET class.
 [assembly: LambdaSerializer(typeof(Amazon.Lambda.Serialization.Json.JsonSerializer))]
@@ -47,13 +48,39 @@ namespace Test1AWSLambda
                     continue;
                 }
 
-                using(var objectResponse = await _s3Client.GetObjectAsync(record.S3.Bucket.Name, record.S3.Object.Key))
-                using(Stream responseStream = objectResponse.ResponseStream)
+                using (var objectResponse = await _s3Client.GetObjectAsync(record.S3.Bucket.Name, record.S3.Object.Key))
+                using (Stream responseStream = objectResponse.ResponseStream)
                 {
                     Console.WriteLine($"Compressing image {record.S3.Bucket.Name}:{record.S3.Object.Key}");
+
+                    // Use TinyPNG to compress the image
+                    TinyPngClient tinyPngClient = new TinyPngClient(Environment.GetEnvironmentVariable("TinyPNG_API_Key"));
+                    var compressResponse = await tinyPngClient.Compress(responseStream);
+                    var downloadResponse = await tinyPngClient.Download(compressResponse);
+
+                    // Upload the compressed image back to S3
+                    using (var compressedStream = await downloadResponse.GetImageStreamData())
+                    {
+                        Console.WriteLine($"Uploading compressed image {record.S3.Bucket.Name}:{record.S3.Object.Key}");
+
+                        await _s3Client.PutObjectAsync(new PutObjectRequest
+                        {
+                            BucketName = record.S3.Bucket.Name,
+                            Key = record.S3.Object.Key,
+                            InputStream = compressedStream,
+                            TagSet = new List<Tag>
+                        {
+                            new Tag
+                            {
+                                Key = "Compressed",
+                                Value = "true"
+                            }
+                        }
+                        });
+                    }
                 }
 
-                
+
             }
             return null;
         }
